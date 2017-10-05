@@ -1,10 +1,13 @@
 ---
 title: "Grain Boundaries Project"
 output:
-  html_document: default
+  html_document: 
+    toc: true
+    toc_float: true
   html_notebook: default
 ---
 
+## Libraries
 ```{r, message = F, warning = F}
 knitr::opts_chunk$set(message = F, warning = F)
 library(tidyverse)
@@ -15,13 +18,24 @@ library(stringr)
 
 
 **Data Files Needed**:
+
  * "GBE2.csv"
  * "fcc1-2.txt"
+ * "fcc2-mobility.txt"
  
-```{r, echo=FALSE, fig.height=6, fig.width=6}
+## Data Read in
+
+```{r}
 setwd("~/Desktop/Research/GrainBoundaries/") # Set to working directory with data files
 
+mobility <- read_tsv("fcc2-mobility.txt", col_names = F, skip = 1)
+colnames(mobility) <- c("GB Index", "Mobility (m/s - GPA)")
+gbenergy <- read_csv("Ni-Al-Au-Cu_energies.csv", col_names = T, skip = 1)
 data <- read_csv('GBE2.csv', col_names = T, col_types = cols())
+
+```
+ 
+```{r, echo=FALSE, fig.height=6, fig.width=6}
 
 xcols <- c("mixed", "tilt", "twist", "dot_hkl", "min_theta", "max_theta")
 
@@ -71,15 +85,51 @@ for (i in 1:length(tabulatedVal)) {
   output[i,5] <- temp[6] / bounddist
 }
 
-colnames(output) <- c("Axis1", "Axis2", "Misor(Deg)", "NormBoundaryH", "NormBoundaryK")
+colnames(output) <- c("Axis1", "Axis2", "MisorDegrees", "NormBoundaryH", "NormBoundaryK")
 
 #write_csv(x = as_tibble(output), path = "GB5DOF.csv")
 ```
 
-```{r}
-gbenergy <- read_csv("Ni-Al-Au-Cu_energies.csv", col_names = T, skip = 1)
-CuGBEnergy <- gbenergy$`mishin cu`
-ccaobj <- cca(x = output, y = CuGBEnergy)
-helio.plot(ccaobj)
+## Canonical Correlation Analysis
 
+### Mishin Copper 
+
+```{r fig.width = 10, fig.height = 10}
+CuGBEnergy <- gbenergy$`mishin cu`
+CuCCAobj <- cca(x = cbind(output, mobility$`Mobility (m/s - GPA)`), y = CuGBEnergy)
+helio.plot(CuCCAobj)
+```
+
+### Aluminum
+
+```{r fig.width = 10, fig.height = 10}
+AlGBEnergy <- gbenergy$al
+AlCCAobj <- cca(x = output, y = cbind(AlGBEnergy, mobility$`Mobility (m/s - GPA)`))
+helio.plot(AlCCAobj)
+```
+
+### Gold
+
+```{r fig.width = 10, fig.height = 10}
+AuGBEnergy <- gbenergy$au1
+AuCCAobj <- cca(x = output, y = cbind(AuGBEnergy, mobility$`Mobility (m/s - GPA)`))
+helio.plot(AuCCAobj)
+```
+
+### Nickel
+
+```{r fig.width = 10, fig.height = 10}
+NiGBEnergy <- gbenergy$ni1
+NiCCAobj <- cca(x = output, y = cbind(NiGBEnergy, mobility$`Mobility (m/s - GPA)`))
+helio.plot(NiCCAobj)
+```
+
+## Random Forest Attempt
+
+```{r}
+library(randomForest)
+
+randForestObj <- randomForest(CuGBEnergy~Axis1+Axis2+MisorDegrees+NormBoundaryH+NormBoundaryK, data = output, ntree = 400)
+importance(randForestObj)
+print(randForestObj)
 ```

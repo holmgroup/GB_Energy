@@ -1,0 +1,85 @@
+---
+title: "Grain Boundaries Project"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+```{r, message = F, warning = F}
+knitr::opts_chunk$set(message = F, warning = F)
+library(tidyverse)
+library(yacca)
+library(stringr)
+
+```
+
+
+**Data Files Needed**:
+ * "GBE2.csv"
+ * "fcc1-2.txt"
+ 
+```{r, echo=FALSE, fig.height=6, fig.width=6}
+setwd("~/Desktop/Research/GrainBoundaries/") # Set to working directory with data files
+
+data <- read_csv('GBE2.csv', col_names = T, col_types = cols())
+
+xcols <- c("mixed", "tilt", "twist", "dot_hkl", "min_theta", "max_theta")
+
+for (y in c("ni1", "al", "au1", "mishin cu")) {
+  ccaobj <- cca(x = data[,xcols], y = data[,y])
+  # helio.plot(ccaobj, main = y)
+}
+
+```
+
+```{r}
+Olmsted <- read_fwf('fcc1-2.txt', col_positions = fwf_widths(30))
+
+## Remove GB_index Lines
+index <- numeric(0)
+for (i in 1:nrow(Olmsted)) {
+  line <- Olmsted[i,]
+  if (!is.na(line) && str_detect(line, "GB_index")) {
+    index <- c(index, i)
+  }
+}
+Olmsted <- Olmsted[-index,]
+
+## Tabulate all the lines that follow a newline (NA)
+## Takes advantage of structure in TXT
+tabulatedVal <- matrix(ncol = 1)
+for (j in 2:nrow(Olmsted)) {
+  if (is.na(Olmsted$X1[j-1])) {
+    tabulatedVal <- rbind(tabulatedVal, Olmsted$X1[j])
+  }
+}
+tabulatedVal <- tabulatedVal[-1,]
+
+## Normalizes Axis and Boundary Plane Normal 
+## Output is Matrix with normalized values
+output <- matrix(ncol = 5, nrow = length(tabulatedVal))
+for (i in 1:length(tabulatedVal)) {
+  rel <- c(1:3, 7, 9:11) # Relevant Indices
+  temp <- as.numeric(str_split(tabulatedVal[i], " ")[[1]][rel]) # Split vector by space, pull relevant indices
+
+  axisdist <- sqrt(temp[1]^2 + temp[2]^2 + temp[3]^2)
+  bounddist <- sqrt(temp[5]^2 + temp[6]^2 + temp[7]^2)
+  output[i,1] <- temp[1] / axisdist
+  output[i,2] <- temp[2] / axisdist
+  output[i,3] <- temp[4]
+  output[i,4] <- temp[5] / bounddist
+  output[i,5] <- temp[6] / bounddist
+}
+
+colnames(output) <- c("Axis1", "Axis2", "Misor(Deg)", "NormBoundaryH", "NormBoundaryK")
+
+#write_csv(x = as_tibble(output), path = "GB5DOF.csv")
+```
+
+```{r}
+gbenergy <- read_csv("Ni-Al-Au-Cu_energies.csv", col_names = T, skip = 1)
+CuGBEnergy <- gbenergy$`mishin cu`
+ccaobj <- cca(x = output, y = CuGBEnergy)
+helio.plot(ccaobj)
+
+```

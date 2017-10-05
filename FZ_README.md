@@ -2,6 +2,7 @@
 
 In the FZ_routines folder there are two matlab functions: fz_inserter.m and mackenzie_plot.m.
 
+1. Example usage of fz_inserter.m
 ```Matlab
 function [aa_pairs_fz, disorientation_fz, OM_fz, r_fz, th_fz, sizes] = fz_inserter(O_list1,O_list2,plotting_str)
 ```
@@ -21,7 +22,7 @@ O2f = reshape(O2',[1 9]);
 ```
 fz_inserter takes flattened orientation matrices in 1 x 9 format [ row1 row2 row3 ], represented by O1f and O2f above, and finds the rotation between those orientations with minimum rotation angle over all cubic symmetry operators (for angular component of axis angle pair). The rotation axis of the axis angle pair is placed in the standard stereographic triangle (SST), of which there are 24 arbitrary choices. This code calculates the fundamental rotations between rows of two Nx9 input matrices. See matlab function for more information on output options. 
 
-2.Example usage of mackenzie_plot.m:
+2. Example usage of mackenzie_plot.m:
 ```Matlab
 function [disorientation_list, axis_list] = mackenzie_plot(n,input_str)
 %example usage, generate mackenzie distribution with 1000 random rotations 

@@ -1,0 +1,5 @@
+LAMMPS (13 Aug 2016)
+#Find the energy of a coherent twin boundary in Cu
+
+#INITIALIZATION
+log log-Cu_Cu_E_out_Sigma_3_111.lammps #create a log file

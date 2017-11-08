@@ -1,0 +1,35 @@
+#Test various potentials
+units metal
+atom_style atomic
+dimension 3
+boundary f p p
+timestep 0.002
+region total block -98.3757461396 98.3757461396 -17.2444077892 17.2444077892 -52.0615020913 52.0615020913
+create_box 1 total
+pair_style eam/alloy
+#pair_coeff       * * Ni1.eam Ni
+#pair_coeff       * * Ni2.eam 1
+#pair_coeff       * * Ni3.eam Ni
+pair_coeff       * * Ni4.eam Ni
+region grain1 block -98.3757461396 32.7919153799 -17.2444077892 17.2444077892 -52.0615020913 52.0615020913
+lattice fcc 3.52 orient x 11 8 5 orient y 1 -2 1 orient z 6 -2 -10
+create_atoms 1 region grain1
+region grain2 intersect 2 total grain1 side out
+lattice fcc 3.52 orient x 11 8 -5 orient y -1 2 1 orient z 6 -2 10
+create_atoms 1 region grain2
+delete_atoms overlap 1.6 all all
+compute eng all pe/atom
+compute eatoms all reduce sum c_eng
+compute MinAtomEnergy all reduce min c_eng
+thermo_style    custom step lx ly lz press pxx pyy pzz c_eatoms c_MinAtomEnergy
+thermo_modify lost ignore flush yes
+thermo                  1000
+min_style cg
+minimize 1.0e-8 1.0e-10 1 1
+fix 1 all box/relax y 0.1 z 0.1
+min_style cg
+minimize 1e-8 1e-10 1 1 #100000 100000
+dump dump1 all custom 1 Ni_1185_sftest_0K_1.dump id type x y z c_eng
+run 1
+unfix 1
+undump dump1

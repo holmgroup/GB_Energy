@@ -1,0 +1,243 @@
+units metal #sets units for simulation: (Å for length, ps for time, eV for energy)
+atom_style atomic #standard header for simulations with metals
+dimension 3
+boundary p p p #periodic boundary conditions in 3 orthogonal directions
+
+#Defining Crystallographic Variables
+variable a equal 3.615  #lattice parameter
+variable xcsl equal 1.73205080757 # sqrt(3)
+variable ycsl equal 0.707106781187 # sqrt(2)/2
+variable zcsl equal 1.22474487139 # sqrt(6)/2
+variable nx equal 10
+variable ny equal 6
+variable nz equal 6
+variable xdim equal ${a}*${nx}*${xcsl}
+variable xdim equal 3.615*${nx}*${xcsl}
+variable xdim equal 3.615*10*${xcsl}
+variable xdim equal 3.615*10*1.73205080757
+variable ydim equal ${a}*${ny}*${ycsl}
+variable ydim equal 3.615*${ny}*${ycsl}
+variable ydim equal 3.615*6*${ycsl}
+variable ydim equal 3.615*6*0.707106781187
+variable zdim equal ${a}*${nz}*${zcsl}
+variable zdim equal 3.615*${nz}*${zcsl}
+variable zdim equal 3.615*6*${zcsl}
+variable zdim equal 3.615*6*1.22474487139
+variable xlo equal -${xdim}/2
+variable xlo equal -62.6136366936555/2
+variable xhi equal ${xdim}/2
+variable xhi equal 62.6136366936555/2
+variable ylo equal -${ydim}/2
+variable ylo equal -15.337146083946/2
+variable yhi equal ${ydim}/2
+variable yhi equal 15.337146083946/2
+variable zlo equal -${zdim}/2
+variable zlo equal -26.5647162604491/2
+variable zhi equal ${zdim}/2
+variable zhi equal 26.5647162604491/2
+
+
+#Define Simulation Box
+region total block ${xlo} ${xhi} ${ylo} ${yhi} ${zlo} ${zhi}
+region total block -31.3068183468278 ${xhi} ${ylo} ${yhi} ${zlo} ${zhi}
+region total block -31.3068183468278 31.3068183468278 ${ylo} ${yhi} ${zlo} ${zhi}
+region total block -31.3068183468278 31.3068183468278 -7.668573041973 ${yhi} ${zlo} ${zhi}
+region total block -31.3068183468278 31.3068183468278 -7.668573041973 7.668573041973 ${zlo} ${zhi}
+region total block -31.3068183468278 31.3068183468278 -7.668573041973 7.668573041973 -13.2823581302245 ${zhi}
+region total block -31.3068183468278 31.3068183468278 -7.668573041973 7.668573041973 -13.2823581302245 13.2823581302245
+create_box 1 total
+Created orthogonal box = (-31.3068 -7.66857 -13.2824) to (31.3068 7.66857 13.2824)
+  1 by 1 by 1 MPI processor grid
+
+#Define Interatomic Potential
+pair_style eam/alloy
+pair_coeff * * Cu.eam Cu
+
+#Define grain orientations and add atoms
+#Grain 1 (left grain)
+region grain1 block INF -0.001 INF INF INF INF
+lattice fcc ${a} orient x 1 1 1 orient y 1 -1 0 orient z 1 1 -2
+lattice fcc 3.615 orient x 1 1 1 orient y 1 -1 0 orient z 1 1 -2
+Lattice spacing in x,y,z = 6.26136 5.11238 5.90327
+create_atoms 1 region grain1
+Created 1080 atoms
+
+#Grain 2 (right grain)
+region grain2 block -0.001 INF INF INF INF INF
+lattice fcc ${a} orient x 1 1 1 orient y -1 1 0 orient z -1 -1 2
+lattice fcc 3.615 orient x 1 1 1 orient y -1 1 0 orient z -1 -1 2
+Lattice spacing in x,y,z = 6.26136 5.11238 5.90327
+create_atoms 1 region grain2
+Created 1080 atoms
+
+#atoms that are too close are deleted: not necessary in this case
+# delete_atoms overlap 1.64 all all
+
+#Define computes
+compute eng all pe/atom
+compute eatoms all reduce sum c_eng
+compute MinAtomEnergy all reduce min c_eng
+compute csym all centro/atom fcc
+
+#Output thermodynamic data
+thermo_style custom step lx ly lz press pxx pyy pzz c_eatoms c_MinAtomEnergy
+thermo 0 #will output at beginning and end of minimization
+
+#Energy minimization 1
+min_style cg
+#Dump structure every 10 minimization steps
+dump dump0 all custom 10 Cu_0K_min.* id type x y z c_eng c_csym
+minimize 1.0e-12 1.0e-12 10000 10000
+WARNING: Resetting reneighboring criteria during minimization (../min.cpp:168)
+Neighbor list info ...
+  2 neighbor list requests
+  update every 1 steps, delay 0 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 8.5
+  ghost atom cutoff = 8.5
+  binsize = 4.25 -> bins = 15 4 7
+Memory usage per processor = 5.8542 Mbytes
+Step Lx Ly Lz Press Pxx Pyy Pzz c_eatoms c_MinAtomEnergy 
+       0    62.613637    15.337146    26.564716   -22048.882   -21764.459   -22191.093   -22191.093   -7645.3762   -3.5400328 
+       9    62.613637    15.337146    26.564716   -22038.794   -21747.022    -22184.68    -22184.68   -7645.3852   -3.5403473 
+Loop time of 0.155911 on 1 procs for 9 steps with 2160 atoms
+
+95.4% CPU use with 1 MPI tasks x no OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+        -7645.37616514     -7645.38520398     -7645.38520398
+  Force two-norm initial, final = 0.297798 0.000109732
+  Force max component initial, final = 0.0174849 4.25509e-06
+  Final line search alpha, max atom move = 1 4.25509e-06
+  Iterations, force evaluations = 9 18
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.14226    | 0.14226    | 0.14226    |   0.0 | 91.24
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011282  | 0.0011282  | 0.0011282  |   0.0 |  0.72
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.01253    |            |       |  8.03
+
+Nlocal:    2160 ave 2160 max 2160 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    7421 ave 7421 max 7421 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    241488 ave 241488 max 241488 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:  482976 ave 482976 max 482976 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 482976
+Ave neighs/atom = 223.6
+Neighbor list builds = 0
+Dangerous builds = 0
+
+#Energy minimization 2, driving pressures on box to small values
+fix 1 all box/relax x 0.1 y 0.1 z 0.1
+min_style cg
+minimize 1e-12 1e-12 10000 10000
+WARNING: Resetting reneighboring criteria during minimization (../min.cpp:168)
+Memory usage per processor = 5.8542 Mbytes
+Step Lx Ly Lz Press Pxx Pyy Pzz c_eatoms c_MinAtomEnergy 
+       9    62.613637    15.337146    26.564716   -22038.794   -21747.022    -22184.68    -22184.68   -7645.3852   -3.5403473 
+      79    62.293147    15.254807    26.422108   0.15505907   0.55812154   0.11122338   -0.2041677   -7648.1916   -3.5418657 
+Loop time of 0.780006 on 1 procs for 70 steps with 2160 atoms
+
+97.3% CPU use with 1 MPI tasks x no OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+        -7645.38520398     -7648.19158927     -7648.19158927
+  Force two-norm initial, final = 607.824 0.0121026
+  Force max component initial, final = 353.235 0.00721628
+  Final line search alpha, max atom move = 0.0154136 0.000111229
+  Iterations, force evaluations = 70 87
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.64654    | 0.64654    | 0.64654    |   0.0 | 82.89
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.003505   | 0.003505   | 0.003505   |   0.0 |  0.45
+Output  | 0.099477   | 0.099477   | 0.099477   |   0.0 | 12.75
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.03048    |            |       |  3.91
+
+Nlocal:    2160 ave 2160 max 2160 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    7421 ave 7421 max 7421 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    241488 ave 241488 max 241488 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:  482976 ave 482976 max 482976 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 482976
+Ave neighs/atom = 223.6
+Neighbor list builds = 0
+Dangerous builds = 0
+
+#Energy
+variable Eo equal -3.54136*atoms
+variable Ef equal "c_eatoms"
+variable Cf equal 1.60217657e-16
+variable A equal (${ydim}*${zdim}*1e-20)
+variable A equal (15.337146083946*${zdim}*1e-20)
+variable A equal (15.337146083946*26.5647162604491*1e-20)
+variable GBE equal ((${Ef}-${Eo})*${Cf})/(2*${A})
+variable GBE equal ((-7648.19156416594-${Eo})*${Cf})/(2*${A})
+variable GBE equal ((-7648.19156416594--7649.3376)*${Cf})/(2*${A})
+variable GBE equal ((-7648.19156416594--7649.3376)*1.60217657e-16)/(2*${A})
+variable GBE equal ((-7648.19156416594--7649.3376)*1.60217657e-16)/(2*4.07426933965083e-18)
+print "GB energy is ${GBE} mJ/m^2"
+GB energy is 22.5335097982108 mJ/m^2
+dump dump1 all custom 1 Cu_0K_0.dump id type x y z c_eng c_csym
+run 1
+Neighbor list info ...
+  2 neighbor list requests
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 8.5
+  ghost atom cutoff = 8.5
+  binsize = 4.25 -> bins = 15 4 7
+Memory usage per processor = 6.09455 Mbytes
+Step Lx Ly Lz Press Pxx Pyy Pzz c_eatoms c_MinAtomEnergy 
+      79    62.293147    15.254807    26.422108   0.15505907   0.55812154   0.11122338   -0.2041677   -7648.1916   -3.5418657 
+      80    62.293147    15.254807    26.422108   0.15505907   0.55812154   0.11122338   -0.2041677   -7648.1916   -3.5418657 
+Loop time of 0.0300601 on 1 procs for 1 steps with 2160 atoms
+
+Performance: 2.874 ns/day, 8.350 hours/ns, 33.267 timesteps/s
+97.4% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.0073922  | 0.0073922  | 0.0073922  |   0.0 | 24.59
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 8.7738e-05 | 8.7738e-05 | 8.7738e-05 |   0.0 |  0.29
+Output  | 0.022556   | 0.022556   | 0.022556   |   0.0 | 75.04
+Modify  | 9.5367e-07 | 9.5367e-07 | 9.5367e-07 |   0.0 |  0.00
+Other   |            | 2.313e-05  |            |       |  0.08
+
+Nlocal:    2160 ave 2160 max 2160 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    7421 ave 7421 max 7421 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    241488 ave 241488 max 241488 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:  482976 ave 482976 max 482976 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 482976
+Ave neighs/atom = 223.6
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix 1
+undump dump1
+Total wall time: 0:00:01

@@ -1,0 +1,173 @@
+LAMMPS (13 Aug 2016)
+#Test various potentials
+units metal
+atom_style atomic
+dimension 3
+boundary f p p
+timestep 0.002
+region total block -98.3757461396 98.3757461396 -17.2444077892 17.2444077892 -52.0615020913 52.0615020913
+create_box 1 total
+Created orthogonal box = (-98.3757 -17.2444 -52.0615) to (98.3757 17.2444 52.0615)
+  1 by 1 by 1 MPI processor grid
+pair_style eam/alloy
+#pair_coeff       * * Ni1.eam Ni
+#pair_coeff       * * Ni2.eam 1
+#pair_coeff       * * Ni3.eam Ni
+pair_coeff       * * Ni4.eam Ni
+region grain1 block -98.3757461396 32.7919153799 -17.2444077892 17.2444077892 -52.0615020913 52.0615020913
+lattice fcc 3.52 orient x 11 8 5 orient y 1 -2 1 orient z 6 -2 -10
+Lattice spacing in x,y,z = 5.82967 5.74814 5.3549
+create_atoms 1 region grain1
+Created 43160 atoms
+region grain2 intersect 2 total grain1 side out
+lattice fcc 3.52 orient x 11 8 -5 orient y -1 2 1 orient z 6 -2 10
+Lattice spacing in x,y,z = 5.82967 5.74814 5.3549
+create_atoms 1 region grain2
+Created 21600 atoms
+delete_atoms overlap 1.6 all all
+Neighbor list info ...
+  2 neighbor list requests
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.80375
+  ghost atom cutoff = 7.80375
+  binsize = 3.90187 -> bins = 51 9 27
+Deleted 80 atoms, new total = 64680
+compute eng all pe/atom
+compute eatoms all reduce sum c_eng
+compute MinAtomEnergy all reduce min c_eng
+thermo_style    custom step lx ly lz press pxx pyy pzz c_eatoms c_MinAtomEnergy
+thermo_modify lost ignore flush yes
+thermo                  1000
+min_style cg
+minimize 1.0e-8 1.0e-10 1 1
+WARNING: Resetting reneighboring criteria during minimization (../min.cpp:168)
+Neighbor list info ...
+  1 neighbor list requests
+  update every 1 steps, delay 0 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.80375
+  ghost atom cutoff = 7.80375
+  binsize = 3.90187 -> bins = 51 9 27
+Memory usage per processor = 29.8921 Mbytes
+Step Lx Ly Lz Press Pxx Pyy Pzz c_eatoms c_MinAtomEnergy 
+       0    196.75149    34.488816      104.123   -1630.4728    62.552052   -2558.9861   -2394.9843   -286605.28   -4.4532309 
+       1    196.75149    34.488816      104.123   -1386.9096    63.460024   -2165.5792   -2058.6097   -286681.41   -4.4541106 
+Loop time of 0.415195 on 1 procs for 1 steps with 64680 atoms
+
+99.0% CPU use with 1 MPI tasks x no OpenMP threads
+
+Minimization stats:
+  Stopping criterion = max force evaluations
+  Energy initial, next-to-last, final = 
+        -286605.276244     -286605.276244      -286681.40775
+  Force two-norm initial, final = 60.0468 19.6535
+  Force max component initial, final = 3.2692 0.689962
+  Final line search alpha, max atom move = 0.0305885 0.0211049
+  Iterations, force evaluations = 1 1
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.41001    | 0.41001    | 0.41001    |   0.0 | 98.75
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0007782  | 0.0007782  | 0.0007782  |   0.0 |  0.19
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.004404   |            |       |  1.06
+
+Nlocal:    64680 ave 64680 max 64680 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    42099 ave 42099 max 42099 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    5.60176e+06 ave 5.60176e+06 max 5.60176e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 5601760
+Ave neighs/atom = 86.6073
+Neighbor list builds = 0
+Dangerous builds = 0
+fix 1 all box/relax y 0.1 z 0.1
+min_style cg
+minimize 1e-8 1e-10 1 1 #100000 100000
+WARNING: Resetting reneighboring criteria during minimization (../min.cpp:168)
+Memory usage per processor = 30.7671 Mbytes
+Step Lx Ly Lz Press Pxx Pyy Pzz c_eatoms c_MinAtomEnergy 
+       1    196.75149    34.488816      104.123   -1386.9096    63.460024   -2165.5792   -2058.6097   -286681.41   -4.4541106 
+       2    196.75149    34.485367    104.11311   -1036.1049    266.80731   -1730.2894   -1644.8326   -286681.57   -4.4541127 
+Loop time of 0.41366 on 1 procs for 1 steps with 64680 atoms
+
+99.1% CPU use with 1 MPI tasks x no OpenMP threads
+
+Minimization stats:
+  Stopping criterion = max force evaluations
+  Energy initial, next-to-last, final = 
+         -286681.40775      -286681.40775     -286681.571327
+  Force two-norm initial, final = 1317.86 1052.94
+  Force max component initial, final = 955.051 763.019
+  Final line search alpha, max atom move = 1.04706e-07 7.98929e-05
+  Iterations, force evaluations = 1 1
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.40549    | 0.40549    | 0.40549    |   0.0 | 98.03
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00070667 | 0.00070667 | 0.00070667 |   0.0 |  0.17
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.007459   |            |       |  1.80
+
+Nlocal:    64680 ave 64680 max 64680 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    42099 ave 42099 max 42099 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    5.60344e+06 ave 5.60344e+06 max 5.60344e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 5603440
+Ave neighs/atom = 86.6333
+Neighbor list builds = 0
+Dangerous builds = 0
+dump dump1 all custom 1 Ni_1185_sftest_0K_1.dump id type x y z c_eng
+run 1
+Neighbor list info ...
+  1 neighbor list requests
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.80375
+  ghost atom cutoff = 7.80375
+  binsize = 3.90187 -> bins = 51 9 27
+Memory usage per processor = 30.6029 Mbytes
+Step Lx Ly Lz Press Pxx Pyy Pzz c_eatoms c_MinAtomEnergy 
+       2    196.75149    34.485367    104.11311   -1036.1049    266.80731   -1730.2894   -1644.8326   -286681.57   -4.4541127 
+       3    196.75149    34.485367    104.11311   -1036.1049    266.80731   -1730.2894   -1644.8326   -286681.57   -4.4541127 
+Loop time of 0.303256 on 1 procs for 1 steps with 64680 atoms
+
+Performance: 0.570 ns/day, 42.119 hours/ns, 3.298 timesteps/s
+97.7% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.21248    | 0.21248    | 0.21248    |   0.0 | 70.07
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00058889 | 0.00058889 | 0.00058889 |   0.0 |  0.19
+Output  | 0.089994   | 0.089994   | 0.089994   |   0.0 | 29.68
+Modify  | 9.5367e-07 | 9.5367e-07 | 9.5367e-07 |   0.0 |  0.00
+Other   |            | 0.0001919  |            |       |  0.06
+
+Nlocal:    64680 ave 64680 max 64680 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    42099 ave 42099 max 42099 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    5.60344e+06 ave 5.60344e+06 max 5.60344e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 5603440
+Ave neighs/atom = 86.6333
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix 1
+undump dump1
+Total wall time: 0:00:03

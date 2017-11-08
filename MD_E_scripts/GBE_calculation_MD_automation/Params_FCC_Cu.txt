@@ -1,0 +1,10 @@
+#Tabulated properties for EAM potentials
+#y_sf is stacking fault energy, y_usfe unstable fault energy, y_T twin energy
+#a lattice param, E_o cohesive energy, T_m melting temperature. Note y_usfe = 100 is filler value
+Element y_sf y_usf y_T a E_o T_m  
+Cu 53 190 27 3.615 -3.540 1320
+
+
+
+
+

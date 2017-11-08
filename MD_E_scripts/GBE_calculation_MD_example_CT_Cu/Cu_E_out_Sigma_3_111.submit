@@ -1,0 +1,12 @@
+#!/bin/bash
+#SBATCH --job-name=Cu_E_out_Sigma_3_111
+#SBATCH --output=Cu_E_out_Sigma_3_111.stdout
+#SBATCH --ntasks=32
+#SBATCH --partition=batch
+#SBATCH --exclusive
+#SBATCH --mail-type=END
+#SBATCH --mail-user=ichesser@andrew.cmu.edu
+module load gcc
+module load openmpi
+module load lammps/2014.06.28
+mpirun lammps -i Cu_Cu_E_out_Sigma_3_111.in

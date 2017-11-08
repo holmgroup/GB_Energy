@@ -1,0 +1,82 @@
+#Find the energy of a coherent twin boundary in Cu
+
+#INITIALIZATION
+log log-Cu_Cu_E_out_Sigma_3_111.lammps #create a log file 
+units metal #sets units for simulation: (Å for length, ps for time, eV for energy)
+atom_style atomic #standard header for simulations with metals
+dimension 3 
+boundary p p p #periodic boundary conditions in 3 orthogonal directions
+
+#Defining Crystallographic Variables
+variable a equal 3.615  #lattice parameter
+variable xcsl equal 1.73205080757 # sqrt(3)
+variable ycsl equal 0.707106781187 # sqrt(2)/2
+variable zcsl equal 1.22474487139 # sqrt(6)/2
+variable nx equal 10
+variable ny equal 6
+variable nz equal 6
+variable xdim equal ${a}*${nx}*${xcsl}
+variable ydim equal ${a}*${ny}*${ycsl}
+variable zdim equal ${a}*${nz}*${zcsl}
+variable xlo equal -${xdim}/2
+variable xhi equal ${xdim}/2
+variable ylo equal -${ydim}/2
+variable yhi equal ${ydim}/2
+variable zlo equal -${zdim}/2
+variable zhi equal ${zdim}/2
+
+
+#Define Simulation Box
+region total block ${xlo} ${xhi} ${ylo} ${yhi} ${zlo} ${zhi}
+create_box 1 total
+
+#Define Interatomic Potential
+pair_style eam/alloy
+pair_coeff * * Cu.eam Cu
+
+#Define grain orientations and add atoms
+#Grain 1 (left grain)
+region grain1 block INF -0.001 INF INF INF INF
+lattice fcc ${a} orient x 1 1 1 orient y 1 -1 0 orient z 1 1 -2
+create_atoms 1 region grain1
+
+#Grain 2 (right grain)
+region grain2 block -0.001 INF INF INF INF INF
+lattice fcc ${a} orient x 1 1 1 orient y -1 1 0 orient z -1 -1 2
+create_atoms 1 region grain2
+
+#atoms that are too close are deleted: not necessary in this case
+# delete_atoms overlap 1.64 all all
+
+#Define computes
+compute eng all pe/atom
+compute eatoms all reduce sum c_eng
+compute MinAtomEnergy all reduce min c_eng
+compute csym all centro/atom fcc
+
+#Output thermodynamic data 
+thermo_style custom step lx ly lz press pxx pyy pzz c_eatoms c_MinAtomEnergy
+thermo 0 #will output at beginning and end of minimization
+
+#Energy minimization 1
+min_style cg
+#Dump structure every 10 minimization steps
+dump dump0 all custom 10 Cu_0K_min.* id type x y z c_eng c_csym
+minimize 1.0e-12 1.0e-12 10000 10000
+
+#Energy minimization 2, driving pressures on box to small values
+fix 1 all box/relax x 0.1 y 0.1 z 0.1
+min_style cg
+minimize 1e-12 1e-12 10000 10000
+
+#Energy 
+variable Eo equal -3.54136*atoms
+variable Ef equal "c_eatoms"
+variable Cf equal 1.60217657e-16
+variable A equal (${ydim}*${zdim}*1e-20)
+variable GBE equal ((${Ef}-${Eo})*${Cf})/(2*${A})
+print "GB energy is ${GBE} mJ/m^2"
+dump dump1 all custom 1 Cu_0K_0.dump id type x y z c_eng c_csym
+run 1
+unfix 1
+undump dump1

@@ -4,15 +4,30 @@ output:
   html_document: 
     toc: true
     toc_float: true
+    code_folding: hide
   html_notebook: default
 ---
 
 ## Libraries
+
 ```{r, message = F, warning = F}
 knitr::opts_chunk$set(message = F, warning = F)
 library(tidyverse)
 library(yacca)
 library(stringr)
+jackyl_theme <- function() {
+  theme_bw() +
+  theme(axis.text = element_text(size = 10, color = "#04122A"),
+        text = element_text(size = 12, face = "bold", color = "#04122A"),
+        panel.grid.major = element_line(color = "#9ca5ac", linetype = 1),
+        panel.grid.minor = element_line(color = "#9ca5ac", linetype = 2),
+        panel.border = element_rect(color = "#1c68a6", size = 1.5),
+        panel.background = element_rect(fill = "#dcddd9"),
+        plot.background = element_rect(fill = "#f9f6f3"),
+        legend.background = element_rect(fill = "#f9f6f3"),
+        axis.title = element_text(size = 14, color = "#04122A"),
+        axis.ticks.length = unit(1, "pt"))
+}
 
 ```
 
@@ -23,7 +38,7 @@ library(stringr)
  * "fcc1-2.txt"
  * "fcc2-mobility.txt"
  
-## Data Read in
+## Olmsted Dataset
 
 ```{r}
 setwd("~/Desktop/Research/GrainBoundaries/") # Set to working directory with data files
@@ -78,19 +93,18 @@ for (i in 1:length(tabulatedVal)) {
 
   axisdist <- sqrt(temp[1]^2 + temp[2]^2 + temp[3]^2)
   bounddist <- sqrt(temp[5]^2 + temp[6]^2 + temp[7]^2)
-  output[i,1] <- temp[1] / axisdist
-  output[i,2] <- temp[2] / axisdist
+  output[i,1] <- acos(temp[1] / axisdist) * 180 / pi
+  output[i,2] <- acos(temp[2] / axisdist) * 180 / pi
   output[i,3] <- temp[4]
-  output[i,4] <- temp[5] / bounddist
-  output[i,5] <- temp[6] / bounddist
+  output[i,4] <- acos(temp[5] / bounddist) * 180 / pi
+  output[i,5] <- acos(temp[6] / bounddist) * 180 / pi
 }
 
 colnames(output) <- c("Axis1", "Axis2", "MisorDegrees", "NormBoundaryH", "NormBoundaryK")
-
 #write_csv(x = as_tibble(output), path = "GB5DOF.csv")
 ```
 
-## Canonical Correlation Analysis
+## Canonical Correlation Analysis {.tabset}
 
 ### Mishin Copper 
 
@@ -120,11 +134,12 @@ helio.plot(AuCCAobj)
 
 ```{r fig.width = 10, fig.height = 10}
 NiGBEnergy <- gbenergy$ni1
-NiCCAobj <- cca(x = output, y = cbind(NiGBEnergy, mobility$`Mobility (m/s - GPA)`))
+NiCCAobj <- cca(x = output[,1:5], y = cbind(NiGBEnergy))
 helio.plot(NiCCAobj)
 ```
 
-## Random Forest Attempt
+
+## Random Forest Attempt {.tabset}
 
 ```{r}
 library(randomForest)
@@ -132,4 +147,343 @@ library(randomForest)
 randForestObj <- randomForest(CuGBEnergy~Axis1+Axis2+MisorDegrees+NormBoundaryH+NormBoundaryK, data = output, ntree = 400)
 importance(randForestObj)
 print(randForestObj)
+```
+
+
+## Systematic RandomForests {.tabset}
+
+### Single Importance Weights
+
+```{r}
+output <- as_tibble(output)
+runRF <- function(DOFNum, data, GBEnergy) {
+  obj <- randomForest(x = data[DOFNum],y = GBEnergy, ntree = 400)
+  weights <- obj$importance
+  maxWeight <- max(obj$importance)
+  index <- which.max(obj$importance)
+  return(c(rownames(weights)[index], maxWeight))
+}
+
+singletons <- matrix(ncol = 2)
+for (DOF in 1:5) {
+  singletons <- rbind(singletons, runRF(DOF, output, CuGBEnergy))
+}
+
+singletons <- as_tibble(singletons[-1,]) %>% mutate(Type = rep(1, 5))
+
+```
+
+### Pairwise Importance Weights
+
+```{r}
+pairs <- matrix(ncol = 2)
+for (DOF in 1:5) {
+  for (DOF2 in 1:5) {
+    if (DOF >= DOF2) {
+      next
+    }
+    pairs <- rbind(pairs, runRF(c(DOF, DOF2), output, CuGBEnergy))
+  }
+}
+
+pairs <- as_tibble(pairs[-1,]) %>% mutate(Type = rep(2, 10))
+```
+
+### Triple Importance Weights
+
+```{r}
+triplets <- matrix(ncol = 2)
+for (DOF in 1:5) {
+  for (DOF2 in 1:5) {
+    for (DOF3 in 1:5) {
+      if ((DOF > DOF2) || (DOF2 > DOF3) || DOF == DOF2 || DOF2 == DOF3) {
+        next
+      }
+      print(c(DOF, DOF2, DOF3))
+      triplets <- rbind(triplets, runRF(c(DOF, DOF2, DOF3), output, CuGBEnergy))
+    }
+  }
+}
+
+triplets <- as_tibble(triplets[-1,]) %>% mutate(Type = rep(3, 10))
+```
+
+### Quadruple Importance Weights
+
+```{r}
+quad <- matrix(ncol = 2)
+for (DOF in 1:5) {
+  for (DOF2 in 1:5) {
+    for (DOF3 in 1:5) {
+      for (DOF4 in 1:5) {
+        if ((DOF >= DOF2) || (DOF2 >= DOF3) || (DOF3 >= DOF4)) {
+          next
+        } 
+        print(c(DOF, DOF2, DOF3, DOF4))
+        quad <- rbind(quad, runRF(c(DOF, DOF2, DOF3, DOF4), output, CuGBEnergy))
+      }
+    }
+  }
+}
+
+quad <- as_tibble(quad[-1,]) %>% mutate(Type = rep(4, 5))
+```
+
+### Penta Importance Weights
+
+```{r}
+val <- runRF(1:5, output, CuGBEnergy)
+pents <- as_tibble(matrix(val, ncol = 2)) %>% mutate(Type = 5)
+
+```
+
+### Weight Analysis
+
+```{r}
+singletons[which.max(singletons$V2),]
+pairs[which.max(pairs$V2),]
+triplets[which.max(triplets$V2),]
+quad[which.max(quad$V2),]
+pents
+
+Totals <- rbind(singletons, pairs, triplets, quad, pents) %>% mutate(V1 = as.factor(V1), 
+                                                                     V2 = as.numeric(V2),
+                                                                     Type = as.factor(Type))
+```
+
+### Visualization
+
+```{r}
+ggplot(Totals) + 
+  geom_point(aes(x = V1, y = V2, color = Type)) +
+  labs(x = "Degree of Freedom", 
+       y = "Importance Weight", 
+       title = "Importance Weights of Various DOF for Copper GB Energy") +
+  jackyl_theme()
+```
+
+### Marginal Distributions
+
+```{r}
+library(gridExtra)
+p1 <- ggplot(output) + geom_histogram(aes(x = Axis1)) +
+        labs(x = "Rotation Axis 1 (Deg)",
+               y = "Counts") +
+        jackyl_theme()
+p2 <- ggplot(output) + geom_histogram(aes(x = Axis2)) +
+        labs(x = "Rotation Axis 2 (Deg)",
+               y = "Counts") +
+        jackyl_theme()
+p3 <- ggplot(output) + geom_histogram(aes(x = MisorDegrees)) +
+        labs(x = "Misorientation Angle (Deg)",
+               y = "Counts") +
+        jackyl_theme()
+p4 <- ggplot(output) + geom_histogram(aes(x = NormBoundaryH)) + 
+        labs(x = "Boundary Axis H (Deg)",
+               y = "Counts") +
+        jackyl_theme()
+p5 <- ggplot(output) + geom_histogram(aes(x = NormBoundaryK)) +
+        labs(x = "Boundary Axis K (Deg)",
+               y = "Counts") +
+        jackyl_theme()
+
+grid.arrange(p1, p2, p3, p4, p5, ncol = 2)
+```
+
+
+### ChiSquared Test
+
+```{r}
+chisq.test(output$NormBoundaryH, output$NormBoundaryK)
+
+```
+
+## Rohrer Dataset
+
+```{r}
+library(readxl)
+RohrerData <- read_excel("../gb_data-Rohrer.xlsx",
+                       col_names = c("Ax1", "Ax2", "Ax3", "Ang", "n1", "n2", "n3", 
+                                     "AusteniteEnergy", "AusteniteArea",
+                                     "SrTiO3Energy", "SrTiO3Area",
+                                     "FerriteEnergy", "FerriteArea",
+                                     "NiEnergy", "NiArea",
+                                     "AlArea", "CuInSe2Area",
+                                     "SiArea"), skip = 1)
+
+RohrerDOF <- select(RohrerData, Ax1, Ax2, Ang, n1, n2, 
+                    AusteniteEnergy, SrTiO3Energy, FerriteEnergy,
+                    NiEnergy) %>%
+               mutate(Ax1 = acos(Ax1) * 180 / pi,
+                      Ax2 = acos(Ax2) * 180 / pi,
+                      n1 = acos(n1) * 180 / pi,
+                      n2 = acos(n2) * 180 / pi)
+```
+
+## Canonical Correlation Analysis {.tabset}
+
+### Austenite
+
+```{r fig.width = 8, fig.height = 8}
+ausObj <- cca(x = select(RohrerDOF, Ax1, Ax2, Ang, n1, n2), 
+              y = RohrerDOF$AusteniteEnergy,
+              xlab = c("Axis1", "Axis2", "MisorAngle", "NormH", "NormK"),
+              ylab = "Austenite GB Energy")
+helio.plot(ausObj)
+
+```
+
+### SrTiO3 
+
+```{r fig.width = 8, fig.height = 8}
+SrTiO3Obj <- cca(x = select(RohrerDOF, Ax1, Ax2, Ang, n1, n2), 
+              y = RohrerDOF$SrTiO3Energy,
+              xlab = c("Axis1", "Axis2", "MisorAngle", "NormH", "NormK"),
+              ylab = "SrTiO3 GB Energy")
+helio.plot(SrTiO3Obj)
+
+```
+
+### Ferrite
+
+```{r fig.width = 8, fig.height = 8}
+ferriteObj <- cca(x = select(RohrerDOF, Ax1, Ax2, Ang, n1, n2), 
+              y = RohrerDOF$FerriteEnergy,
+              xlab = c("Axis1", "Axis2", "MisorAngle", "NormH", "NormK"),
+              ylab = "Ferrite GB Energy")
+helio.plot(ferriteObj)
+
+```
+
+### Ni
+
+```{r fig.width = 8, fig.height = 8}
+NiObj <- cca(x = select(RohrerDOF, Ax1, Ax2, Ang, n1, n2), 
+              y = RohrerDOF$NiEnergy,
+              xlab = c("Axis1", "Axis2", "MisorAngle", "NormH", "NormK"),
+              ylab = "Nickel GB Energy")
+helio.plot(NiObj)
+
+```
+
+
+## Systematic RandomForests {.tabset}
+
+### Single Importance Weights
+
+```{r}
+output <- as_tibble(RohrerDOF)
+runRF <- function(DOFNum, data, GBEnergy) {
+  obj <- randomForest(x = data[DOFNum],y = GBEnergy, ntree = 400)
+  weights <- obj$importance
+  maxWeight <- max(obj$importance)
+  index <- which.max(obj$importance)
+  return(c(rownames(weights)[index], maxWeight))
+}
+
+singletons <- matrix(ncol = 2)
+for (DOF in 1:5) {
+  singletons <- rbind(singletons, runRF(DOF, output, RohrerDOF$AusteniteEnergy))
+}
+
+singletons <- as_tibble(singletons[-1,]) %>% mutate(Type = rep(1, 5))
+
+```
+
+### Pairwise Importance Weights
+
+```{r}
+pairs <- matrix(ncol = 2)
+for (DOF in 1:5) {
+  for (DOF2 in 1:5) {
+    if (DOF >= DOF2) {
+      next
+    }
+    pairs <- rbind(pairs, runRF(c(DOF, DOF2), output,  RohrerDOF$AusteniteEnergy))
+  }
+}
+
+pairs <- as_tibble(pairs[-1,]) %>% mutate(Type = rep(2, 10))
+```
+
+### Triple Importance Weights
+
+```{r}
+triplets <- matrix(ncol = 2)
+for (DOF in 1:5) {
+  for (DOF2 in 1:5) {
+    for (DOF3 in 1:5) {
+      if ((DOF > DOF2) || (DOF2 > DOF3) || DOF == DOF2 || DOF2 == DOF3) {
+        next
+      }
+      print(c(DOF, DOF2, DOF3))
+      triplets <- rbind(triplets, runRF(c(DOF, DOF2, DOF3), output,  RohrerDOF$AusteniteEnergy))
+    }
+  }
+}
+
+triplets <- as_tibble(triplets[-1,]) %>% mutate(Type = rep(3, 10))
+```
+
+### Quadruple Importance Weights
+
+```{r}
+quad <- matrix(ncol = 2)
+for (DOF in 1:5) {
+  for (DOF2 in 1:5) {
+    for (DOF3 in 1:5) {
+      for (DOF4 in 1:5) {
+        if ((DOF >= DOF2) || (DOF2 >= DOF3) || (DOF3 >= DOF4)) {
+          next
+        } 
+        print(c(DOF, DOF2, DOF3, DOF4))
+        quad <- rbind(quad, runRF(c(DOF, DOF2, DOF3, DOF4), output,  RohrerDOF$AusteniteEnergy))
+      }
+    }
+  }
+}
+
+quad <- as_tibble(quad[-1,]) %>% mutate(Type = rep(4, 5))
+```
+
+### Penta Importance Weights
+
+```{r}
+val <- runRF(1:5, output,  RohrerDOF$AusteniteEnergy)
+pents <- as_tibble(matrix(val, ncol = 2)) %>% mutate(Type = 5)
+
+```
+
+### Weight Analysis
+
+```{r}
+library(forcats)
+singletons[which.max(singletons$V2),]
+pairs[which.max(pairs$V2),]
+triplets[which.max(triplets$V2),]
+quad[which.max(quad$V2),]
+pents
+
+Totals <- rbind(singletons, pairs, triplets, quad, pents) %>% 
+            mutate(V1 = as.factor(V1), 
+                   V2 = as.numeric(V2),
+                   Type = as.factor(Type))
+```
+
+### Visualization
+
+```{r}
+Totals <- mutate(Totals, V1 = fct_recode(Totals$V1, "MisorDegrees" = "Ang",
+                                         "Axis1" = "Ax1",
+                                         "Axis2" = "Ax2",
+                                         "NormBoundaryH" = "n1",
+                                         "NormBoundaryK" = "n2"),
+                  V1 = fct_relevel(Totals$V1, "Axis1", "Axis2", "MisorDegrees", "NormBoundaryH", "NormBoundaryK"))
+ggplot(Totals) +
+  geom_point(aes(x = V1, y = V2 , color = Type)) +
+  labs(x = "Degree of Freedom", 
+       y = "Importance Weight", 
+       title = "Importance Weights of Various DOF for Austenite GB Energy") +
+  jackyl_theme() 
+
 ```

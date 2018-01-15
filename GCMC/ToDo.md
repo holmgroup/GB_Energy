@@ -10,6 +10,8 @@ A working to-do list for the use of grand canonical Monte Carlo to study variabl
 2. Implement movement of atoms inside the grain boundary region
 3. Implement DSC lattice shifts
 4. Implement "copying" of middle grain boundary to edges of simulation box
+
 Optional:
+
 5. Implement grain boundary region detection
 6. Implement grain boundary creation 
